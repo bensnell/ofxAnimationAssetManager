@@ -63,6 +63,9 @@ public:
 	//starts checking provided assets folder, compressing assets if necessary
 	void startLoading();
 
+	// Update the animation's progress with either of these methods.
+	// (These can be used interchangeably throughout an application).
+	void update();
 	void update(float dt);
 
 	State getState(){return state;}
@@ -81,7 +84,6 @@ public:
 
 
 protected:
-
 
 	struct CheckInfo{
 		string ID;
@@ -148,6 +150,9 @@ protected:
 	float maxUsedVRAM = 0; //in Mbytes - provided at setup
 	map<string, AssetLoadOptions> assetLoadOptions;
 	bool isSetup = false;
+
+	void update(float dt, uint64_t thisTimeMS);
+	uint64_t lastUpdateTimeMS = 0;
 
 	// ENUM UTILS ////////////////////////////////////
 

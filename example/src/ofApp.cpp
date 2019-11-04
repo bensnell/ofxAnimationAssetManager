@@ -49,8 +49,12 @@ void ofApp::setup(){
 
 void ofApp::update(){
 
-	float dt = 1.0f / ofGetTargetFrameRate();
-	aam.update(dt);
+	// Update one of two ways:
+	// (1) Pass the time change
+	//float dt = 1.0f / ofGetTargetFrameRate();
+	//aam.update(dt);
+	// (2) Allow AAM to take care of calculating the time change
+	aam.update();
 
 	// state machine, once assets are ready, start the "app"
 	if(aam.getState() == ofxAnimationAssetManager::READY && state != READY){

@@ -387,8 +387,27 @@ ofTexture & ofxAnimationAssetManager::getTexture(const string & ID){
 	return nullTexture;
 }
 
+void ofxAnimationAssetManager::update() {
 
-void ofxAnimationAssetManager::update(float dt){
+	if (lastUpdateTimeMS == 0) {
+		update(1.0 / float(ofGetTargetFrameRate()), ofGetElapsedTimeMillis());
+	}
+	else {
+		uint64_t thisTime = ofGetElapsedTimeMillis();
+		float dt = float(thisTime - lastUpdateTimeMS) / 1000.0;
+		update(dt, thisTime);
+	}
+}
+
+void ofxAnimationAssetManager::update(float dt) {
+
+	update(dt, ofGetElapsedTimeMillis());
+}
+
+void ofxAnimationAssetManager::update(float dt, uint64_t thisTimeMS){
+
+	// Save this time as the last update time
+	lastUpdateTimeMS = thisTimeMS;
 
 	switch (state) {
 		case UNINITED: break;

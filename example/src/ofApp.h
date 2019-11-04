@@ -5,6 +5,10 @@
 #include "ofxImageSequenceVideo.h"
 #include "ofxAnimationAssetManager.h"
 
+// Note: The Macro OFX_IMAGE_SEQUENCE_VIDEO__STB_IMAGE_IMPLEMENTATION
+// must be defined if no other addon (besides ofxImageSequenceVideo) uses
+// the stb image library.
+
 class ofApp : public CustomApp{
 
 public:

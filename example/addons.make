@@ -1,7 +1,11 @@
 ofxOsc
 ofxPoco
 ofxXmlSettings
+../../../ExternalAddons/ofxTimeMeasurements
+../../../ExternalAddons/ofxRemoteUI
 ../../../ExternalAddons/ofxImageSequenceVideo
 ../../../ExternalAddons/ofxDXT
-../../../ExternalAddons/ofxRemoteUI
-../../../ExternalAddons/ofxTimeMeasurements
+../../../ExternalAddons/ofxScreenSetup
+../../../ExternalAddons/ofxFontStash
+../../../ExternalAddons/ofxHistoryPlot
+../../../ExternalAddons/ofxAnimationAssetManager

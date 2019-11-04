@@ -1,12 +1,12 @@
 //
-//  AnimationAssetManager.cpp
+//  ofxAnimationAssetManager.cpp
 //  ofxImageSequenceVideo_Example
 //
 //  Created by Oriol Ferrer Mesià on 28/03/2019.
 //
 //
 
-#include "AnimationAssetManager.h"
+#include "ofxAnimationAssetManager.h"
 
 #if defined( TARGET_OSX ) || defined( TARGET_LINUX )
 	#include <getopt.h>
@@ -17,10 +17,10 @@
 
 #include "ofxTimeMeasurements.h"
 
-AnimationAssetManager::AnimationAssetManager(){}
+ofxAnimationAssetManager::ofxAnimationAssetManager(){}
 
 
-AnimationAssetManager::~AnimationAssetManager(){
+ofxAnimationAssetManager::~ofxAnimationAssetManager(){
 
 	needsToStop = true;
 
@@ -44,7 +44,7 @@ AnimationAssetManager::~AnimationAssetManager(){
 }
 
 
-string AnimationAssetManager::getStatus(){
+string ofxAnimationAssetManager::getStatus(){
 
 	string msg = "State: " + toString(state) + "\n";
 	string list;
@@ -71,19 +71,19 @@ string AnimationAssetManager::getStatus(){
 }
 
 
-vector<string> AnimationAssetManager::getStaticImageIDs(){
+vector<string> ofxAnimationAssetManager::getStaticImageIDs(){
 	vector<string> ret;
 	for(auto & img: images) ret.emplace_back(img.first);
 	return ret;
 }
 
-vector<string> AnimationAssetManager::getAnimationIDs(){
+vector<string> ofxAnimationAssetManager::getAnimationIDs(){
 	vector<string> ret;
 	for(auto & img: animations) ret.emplace_back(img.first);
 	return ret;
 }
 
-AnimationAssetManager::AssetType AnimationAssetManager::getAssetType(const string & ID){
+ofxAnimationAssetManager::AssetType ofxAnimationAssetManager::getAssetType(const string & ID){
 	auto it = info.find(ID);
 	if(it != info.end()){
 		return it->second.type;
@@ -91,30 +91,17 @@ AnimationAssetManager::AssetType AnimationAssetManager::getAssetType(const strin
 	return UNKNOWN_ASSET_TYPE;
 }
 
-void AnimationAssetManager::setup(const string & folder, float maxUsedVRAM, const map<string, AssetLoadOptions> & options, int numThreads, bool playAssetsInReverse){
+void ofxAnimationAssetManager::setup(const string & folder, float maxUsedVRAM, const map<string, AssetLoadOptions> & options, int numThreads, bool playAssetsInReverse){
 
-	numThreadsToUse = numThreads;
-	assetsFolder = folder;
-	this->maxUsedVRAM = maxUsedVRAM;
+	setup(maxUsedVRAM, numThreads, playAssetsInReverse);
+
 	assetLoadOptions = options;
-    this->playAssetsInReverse = playAssetsInReverse;
     
-	ofSetLogLevel("ofxDXT", OF_LOG_WARNING); //silence notice or lower logs for the extra-chatty ofxDXT
 	string newFolder = ofFilePath::getPathForDirectory(folder); 
-
 	ofDirectory dir;
 	dir.listDir(newFolder);
 
-	//init null texture to RED
-	ofFbo fbo;
-	fbo.allocate(32, 32, GL_RGB);
-	fbo.begin();
-		ofClear(255, 0, 0);
-	fbo.end();
-	nullTexture = fbo.getTexture();
-
 	int num = dir.numFiles();
-
 	for(int i = 0; i < num; i++){
 
 		string filenameAndExt = ofToUpper(dir.getName(i));
@@ -124,7 +111,7 @@ void AnimationAssetManager::setup(const string & folder, float maxUsedVRAM, cons
 			info[filenameAndExt].fullPath = dir.getPath(i);
 
 			string ID = filenameAndExt;
-			ofLogNotice("AnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
+			ofLogNotice("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
 
 		}else{ //img file
 
@@ -133,26 +120,108 @@ void AnimationAssetManager::setup(const string & folder, float maxUsedVRAM, cons
 				string ID = ofFilePath::getBaseName(filenameAndExt);
 				info[ID].type = STATIC_IMAGE;
 				info[ID].fullPath = dir.getPath(i);
-				ofLogNotice("AnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+				ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
 			}
 		}
 	}
-    
-    
+}
+
+void ofxAnimationAssetManager::setup(float maxUsedVRAM, int numThreads, bool playAssetsInReverse) {
+
+	numThreadsToUse = numThreads;
+	this->maxUsedVRAM = maxUsedVRAM;
+	this->playAssetsInReverse = playAssetsInReverse;
+
+	ofSetLogLevel("ofxDXT", OF_LOG_WARNING); //silence notice or lower logs for the extra-chatty ofxDXT
+
+	//init null texture to RED
+	ofFbo fbo;
+	fbo.allocate(32, 32, GL_RGB);
+	fbo.begin();
+	ofClear(255, 0, 0);
+	fbo.end();
+	nullTexture = fbo.getTexture();
+
 	isSetup = true;
 }
 
+bool ofxAnimationAssetManager::addAsset(string ID, string& path, AssetLoadOptions& options) {
 
-void AnimationAssetManager::startLoading(){
+	// Save these options
+	assetLoadOptions[ID] = options;
+
+	// Save the asset
+	return addAsset(ID, path);
+}
+
+bool ofxAnimationAssetManager::addAsset(string& path, AssetLoadOptions& options) {
+
+	// The ID of this asset is the base name of the provided path (by default)
+	string ID = ofFilePath::getBaseName(path);
+
+	assetLoadOptions[ID] = options;
+
+	return addAsset(ID, path);
+}
+
+bool ofxAnimationAssetManager::addAsset(string& path) {
+
+	string ID = ofFilePath::getBaseName(path);
+	return addAsset(ID, path);
+}
+
+bool ofxAnimationAssetManager::addAsset(string ID, string& path) {
+
+	ofDirectory dir;
+	dir.open(path);
+
+	// If this is a directory and it contains more than 1 valid image, mark it as an animation
+	if (dir.isDirectory()) { 
+		dir.allowExt("png");
+		dir.allowExt("tga");
+		dir.listDir();
+		if (dir.size() == 0) {			// invalid
+			ofLogNotice("ofxAnimationAssetManager") << "can't load ANIMATION with ID \"" << ID << "\" because there are insufficient PNG or TGA files";
+			return false;
+		}
+		else if (dir.size() == 1) {		// image
+			// Load a single image inside this folder
+			info[ID].type = STATIC_IMAGE;
+			info[ID].fullPath = dir.getPath(0);
+			ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+			return true;
+		}
+		else {							// animation
+			info[ID].type = ANIMATION;
+			info[ID].fullPath = path;
+			ofLogNotice("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
+			return true;
+		}
+	}
+	else {								// image
+		string extension = ofFilePath::getFileExt(path);
+		if (ofToUpper(extension) == "PNG" || ofToUpper(extension) == "TGA") {
+			info[ID].type = STATIC_IMAGE;
+			info[ID].fullPath = path;
+			ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+			return true;
+		}
+		else {
+			return false;
+		}
+	}
+}
+
+void ofxAnimationAssetManager::startLoading(){
 	if(!isSetup) {
-		ofLogError("AnimationAssetManager") << "cant startLoading() as object is not setup!";
+		ofLogError("ofxAnimationAssetManager") << "cant startLoading() as object is not setup!";
 		return;
 	}
 	setState(CHECKING_ASSETS);
 }
 
 
-void AnimationAssetManager::setState(State s){
+void ofxAnimationAssetManager::setState(State s){
 
 	state = s;
 
@@ -160,7 +229,7 @@ void AnimationAssetManager::setState(State s){
 		case UNINITED: break;
 
 		case CHECKING_ASSETS:
-			ofLogNotice("AnimationAssetManager") << "## Start CHECKING Assets #########################################################";
+			ofLogNotice("ofxAnimationAssetManager") << "## Start CHECKING Assets #########################################################";
 			pendingCheck.clear();
 			checked.clear();
 			for(auto & it : info){
@@ -169,7 +238,7 @@ void AnimationAssetManager::setState(State s){
 			break;
 			
 		case COMPRESSING_ASSETS:
-			ofLogNotice("AnimationAssetManager") << "## Start COMPRESSING Assets ######################################################";
+			ofLogNotice("ofxAnimationAssetManager") << "## Start COMPRESSING Assets ######################################################";
 			pendingCompression.clear();
 			compressed.clear();
 			for(auto & it : checked){
@@ -184,7 +253,7 @@ void AnimationAssetManager::setState(State s){
 
 		case PRELOADING_ASSETS:{
 
-			ofLogNotice("AnimationAssetManager") << "## Start PRELOADING Assets #######################################################";
+			ofLogNotice("ofxAnimationAssetManager") << "## Start PRELOADING Assets #######################################################";
 			struct AnimInfo{
 				string ID;
 				float estimatedSizeFullSequence;
@@ -208,7 +277,7 @@ void AnimationAssetManager::setState(State s){
 
 					auto option = assetLoadOptions.find(it.first);
 					if(option == assetLoadOptions.end()){
-						ofLogWarning("AnimationAssetManager") << "Found asset in Folder but user did not supply AssetLoadOptions for it! (" << it.first << "). Will use default options";
+						ofLogWarning("ofxAnimationAssetManager") << "Found asset in Folder but user did not supply AssetLoadOptions for it! (" << it.first << "). Will use default options";
 						assetLoadOptions[it.first] = AssetLoadOptions();
 						option = assetLoadOptions.find(it.first);
 					}
@@ -228,7 +297,7 @@ void AnimationAssetManager::setState(State s){
 					animations[it.first].setKeepTexturesInGpuMem(false); //default to no, will set to true later if requested (in preload stage)
 
 					info[it.first].estimatedSize = estimatedSizeBytes / float(1024 * 1024); //MB
-					ofLogNotice("AnimationAssetManager") << "Animation \"" << it.first << "\" estimated VRAM use to preload whole sequence: " << bytesToHumanReadable(estimatedSizeBytes, 1);
+					ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << it.first << "\" estimated VRAM use to preload whole sequence: " << bytesToHumanReadable(estimatedSizeBytes, 1);
 
 					//store in temoprary data structure
 					animInfos.push_back(AnimInfo{it.first, info[it.first].estimatedSize, animations[it.first].getNumFrames()});
@@ -254,11 +323,11 @@ void AnimationAssetManager::setState(State s){
 				}
 			}
 
-			ofLogNotice("AnimationAssetManager") << "Static Images will take " << memUsedByStaticImages << " Mb in VRAM.";
+			ofLogNotice("ofxAnimationAssetManager") << "Static Images will take " << memUsedByStaticImages << " Mb in VRAM.";
 			float memUsedByAllAnimationsSingleFrame = 0;
 			for(auto & anim : animInfos){
 				float mb = anim.estimatedSizeFullSequence / anim.numFrames;
-				//ofLogNotice("AnimationAssetManager") << "Animation \"" << anim.ID << "\" one frame takes " << mb << " Mb of Vram.";
+				//ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" one frame takes " << mb << " Mb of Vram.";
 				memUsedByAllAnimationsSingleFrame += mb;
 			}
 
@@ -270,14 +339,14 @@ void AnimationAssetManager::setState(State s){
 					if(availableMemForAnimationsPreload - anim.estimatedSizeFullSequence > 0){
 						availableMemForAnimationsPreload -= anim.estimatedSizeFullSequence;
 						pendingPreload.push_back(anim.ID);
-						ofLogNotice("AnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because there's enough VRAM to fit it. " << availableMemForAnimationsPreload << " Mb left to use.";
+						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because there's enough VRAM to fit it. " << availableMemForAnimationsPreload << " Mb left to use.";
 					}
 				}else{
 					if(assetLoadOptions[anim.ID].shouldPreloadAsset == YES){
 						pendingPreload.push_back(anim.ID);
-						ofLogNotice("AnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because of user config requesting it.";
+						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because of user config requesting it.";
 					}else{
-						ofLogNotice("AnimationAssetManager") << "Animation \"" << anim.ID << "\" will be NOT BE preloaded because of user config requesting it.";
+						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be NOT BE preloaded because of user config requesting it.";
 					}
 				}
 			}
@@ -289,23 +358,23 @@ void AnimationAssetManager::setState(State s){
 }
 
 
-ofxImageSequenceVideo & AnimationAssetManager::getAnimation(const string & ID){
+ofxImageSequenceVideo & ofxAnimationAssetManager::getAnimation(const string & ID){
 	auto it = info.find(ID);
 	if(it != info.end()){
 		if(it->second.type == ANIMATION){
 			return animations[ID];
 		}else{
-			ofLogError("AnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" is a static image!";
+			ofLogError("ofxAnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" is a static image!";
 			return nullAnim;
 		}
 	}
-	ofLogError("AnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" does not exist!";
+	ofLogError("ofxAnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" does not exist!";
 	return nullAnim;
 }
 
 
 
-ofTexture & AnimationAssetManager::getTexture(const string & ID){
+ofTexture & ofxAnimationAssetManager::getTexture(const string & ID){
 	auto it = info.find(ID);
 	if(it != info.end()){
 		if(it->second.type == STATIC_IMAGE){
@@ -314,19 +383,19 @@ ofTexture & AnimationAssetManager::getTexture(const string & ID){
 			return animations[ID].getTexture();
 		}
 	}
-	ofLogError("AnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" does not exist!";
+	ofLogError("ofxAnimationAssetManager") << "getAnimation() error! requested animation \"" << ID << "\" does not exist!";
 	return nullTexture;
 }
 
 
-void AnimationAssetManager::update(float dt){
+void ofxAnimationAssetManager::update(float dt){
 
 	switch (state) {
 		case UNINITED: break;
 
 		case CHECKING_ASSETS:
 			if (checked.size() == info.size() ){ //done
-				ofLogNotice("AnimationAssetManager") << "done checking assets!";
+				ofLogNotice("ofxAnimationAssetManager") << "done checking assets!";
 				setState(COMPRESSING_ASSETS);
 			}else{
 
@@ -346,14 +415,14 @@ void AnimationAssetManager::update(float dt){
 					string id = pendingCheck.front();
 					pendingCheck.erase(pendingCheck.begin());
 					checkProgress[id] = ProgressInfo();
-					checkTasks.push_back( std::async(std::launch::async, &AnimationAssetManager::checkAsset, this, id, &checkProgress[id]) );
+					checkTasks.push_back( std::async(std::launch::async, &ofxAnimationAssetManager::checkAsset, this, id, &checkProgress[id]) );
 				}
 			}
 			break;
 
 		case COMPRESSING_ASSETS:
 			if (pendingCompression.size() == 0 && compressTasks.size() == 0 && compressed.size() > 0){ //done
-				ofLogNotice("AnimationAssetManager") << "done compressing assets!";
+				ofLogNotice("ofxAnimationAssetManager") << "done compressing assets!";
 				setState(PRELOADING_ASSETS);
 			}else{
 				//cleanup finshed tasks threads
@@ -372,7 +441,7 @@ void AnimationAssetManager::update(float dt){
 					string id = pendingCompression.front();
 					pendingCompression.erase(pendingCompression.begin());
 					compressProgress[id] = ProgressInfo();
-					compressTasks.push_back( std::async(std::launch::async, &AnimationAssetManager::compressAsset, this, id, &compressProgress[id]) );
+					compressTasks.push_back( std::async(std::launch::async, &ofxAnimationAssetManager::compressAsset, this, id, &compressProgress[id]) );
 				}
 			}
 			break;
@@ -414,9 +483,9 @@ void AnimationAssetManager::update(float dt){
 }
 
 
-AnimationAssetManager::CheckInfo AnimationAssetManager::checkAsset(string ID, AnimationAssetManager::ProgressInfo * progress){
+ofxAnimationAssetManager::CheckInfo ofxAnimationAssetManager::checkAsset(string ID, ofxAnimationAssetManager::ProgressInfo * progress){
 
-	AnimationAssetManager::CheckInfo inf;
+	ofxAnimationAssetManager::CheckInfo inf;
 	inf.ID = ID;
 	inf.done = true;
 	int c = 0;
@@ -427,7 +496,7 @@ AnimationAssetManager::CheckInfo AnimationAssetManager::checkAsset(string ID, An
 			//count all images whith a missing .dxt representation
 			int needCompression = 0;
 			for(auto & img : allImages){
-				string fullPath = assetsFolder + "/" + ID + "/" + img + ".dxt";
+				string fullPath = info[ID].fullPath + "/" + img + ".dxt";
 				ofFile f = ofFile(fullPath);
 				if(!f.exists() || f.getSize() == 0){
 					needCompression++;
@@ -448,15 +517,15 @@ AnimationAssetManager::CheckInfo AnimationAssetManager::checkAsset(string ID, An
 }
 
 
-AnimationAssetManager::CompressInfo AnimationAssetManager::compressAsset(string ID, AnimationAssetManager::ProgressInfo * progress){
+ofxAnimationAssetManager::CompressInfo ofxAnimationAssetManager::compressAsset(string ID, ofxAnimationAssetManager::ProgressInfo * progress){
 
-	AnimationAssetManager::CompressInfo inf;
+	ofxAnimationAssetManager::CompressInfo inf;
 	inf.ID = ID;
 	vector<string> allImages = ofxImageSequenceVideo::getImagesAtDirectory(info[ID].fullPath, false);
 	int c = 0;
 	for(auto & imgName : allImages){
 		ofPixels pix;
-		string fullPath = assetsFolder + "/" + ID + "/" + imgName;
+		string fullPath = info[ID].fullPath + "/" + imgName;
 		ofLoadImage(pix, fullPath);
 		ofxDXT::Data compressedPix;
 		ofxDXT::compressRgbaPixels(pix, compressedPix);
@@ -471,7 +540,7 @@ AnimationAssetManager::CompressInfo AnimationAssetManager::compressAsset(string 
 
 
 //Function Declarations for State string conversion ///////////////  for your *.c
-string AnimationAssetManager::toString(State e){
+string ofxAnimationAssetManager::toString(State e){
 	switch(e){
 		case State::UNINITED: return "UNINITED";
 		case State::CHECKING_ASSETS: return "CHECKING_ASSETS";
@@ -483,7 +552,7 @@ string AnimationAssetManager::toString(State e){
 	return "Unknown State!";
 }
 
-AnimationAssetManager::State AnimationAssetManager::toEnum_State(const string & s){
+ofxAnimationAssetManager::State ofxAnimationAssetManager::toEnum_State(const string & s){
 	if(s == "UNINITED") return State::UNINITED;
 	if(s == "CHECKING_ASSETS") return State::CHECKING_ASSETS;
 	if(s == "COMPRESSING_ASSETS") return State::COMPRESSING_ASSETS ;
@@ -494,7 +563,7 @@ AnimationAssetManager::State AnimationAssetManager::toEnum_State(const string & 
 }
 
 
-std::string AnimationAssetManager::bytesToHumanReadable(long long bytes, int decimalPrecision){
+std::string ofxAnimationAssetManager::bytesToHumanReadable(long long bytes, int decimalPrecision){
 	std::string ret;
 	if (bytes < 1024 ){ //if in bytes range
 		ret = ofToString(bytes) + " bytes";
@@ -513,7 +582,7 @@ std::string AnimationAssetManager::bytesToHumanReadable(long long bytes, int dec
 }
 
 
-void AnimationAssetManager::drawDebug(int x, int y, int w, int h){
+void ofxAnimationAssetManager::drawDebug(int x, int y, int w, int h){
 
 	if(state == READY){
 

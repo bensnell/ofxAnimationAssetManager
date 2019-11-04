@@ -1,8 +1,9 @@
 //
-//  AnimationAssetManager.h
+//  ofxAnimationAssetManager.h
 //  ofxImageSequenceVideo_Example
 //
 //  Created by Oriol Ferrer Mesià on 28/03/2019.
+//	Revised by Ben Snell on 04/11/2019
 //
 //
 
@@ -11,7 +12,7 @@
 #include "ofxDXT.h"
 #include "ofxImageSequenceVideo.h"
 
-class AnimationAssetManager{
+class ofxAnimationAssetManager{
 
 public:
 
@@ -40,15 +41,24 @@ public:
 		int framerate = 30; 							//does not apply to static images
 		int bufferFrames = 5;						//how many frames to pre-load for that animation
 		int numThreads = 4;							//how many threads are allowed to work on the pre-loading of future frames
-		UserOption shouldPreloadAsset = DONT_CARE; 	//let AnimationAssetManager decide given how much memory is available
+		UserOption shouldPreloadAsset = DONT_CARE; 	//let ofxAnimationAssetManager decide given how much memory is available
 													//use YES or NO to force otherwise - Note that StaticImages are always preloaded
 	};
 
-	AnimationAssetManager();
-	~AnimationAssetManager();
+	ofxAnimationAssetManager();
+	~ofxAnimationAssetManager();
 
-	//provide all necessary info to setup the object
+	// Setup the manager one of two ways:
+	// (1) Pass a folder containing static images or animations (image sequences)
 	void setup(const string & folder, float maxUsedVRAM/*in MBytes*/, const map<string, AssetLoadOptions> & options, int numThreads = std::thread::hardware_concurrency(), bool playAssetsInReverse = false);
+	// (2) Set the parameters used in loading separately from the individual assets
+	// Call this once:
+	void setup(float maxUsedVRAM, int numThreads = std::thread::hardware_concurrency(), bool playAssetsInReverse = false);
+	// Call any of these once for each asset added:
+	bool addAsset(string ID, string& path, AssetLoadOptions& options);
+	bool addAsset(string ID, string& path);
+	bool addAsset(string& path, AssetLoadOptions& options);
+	bool addAsset(string& path);
 
 	//starts checking provided assets folder, compressing assets if necessary
 	void startLoading();
@@ -136,7 +146,6 @@ protected:
 	bool needsToStop = false; //to handle obj destruction
 	int numThreadsToUse = 1;
 	float maxUsedVRAM = 0; //in Mbytes - provided at setup
-	string assetsFolder;
 	map<string, AssetLoadOptions> assetLoadOptions;
 	bool isSetup = false;
 

@@ -105,3 +105,6 @@ Desktop.ini
 # Visual Studio things
 /.vs/
 */.vs/*
+
+# Don't upload the compressed textures -- ofxDXT will regenerate these as needed
+*.dxt

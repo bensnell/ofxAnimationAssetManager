@@ -7,6 +7,7 @@ void ofApp::setup(){
 	ofSetFrameRate(30);
 	ofSetVerticalSync(true);
 	ofEnableAlphaBlending();
+	ofEnableArbTex();
 
 	// LISTENERS
 	ofAddListener(screenSetup.setupChanged, this, &ofApp::setupChanged);
@@ -41,7 +42,6 @@ void ofApp::setup(){
 	aam.addAsset(ofToDataPath("anims/girl"), options);
 	aam.addAsset(ofToDataPath("anims/overseer"), options);
 	aam.addAsset(ofToDataPath("anims/quarry"), options);
-
 	// Begin loading assets
 	aam.startLoading();
 }

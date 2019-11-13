@@ -111,7 +111,7 @@ void ofxAnimationAssetManager::setup(const string & folder, float maxUsedVRAM, c
 			info[filenameAndExt].fullPath = dir.getPath(i);
 
 			string ID = filenameAndExt;
-			ofLogNotice("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
+			ofLogVerbose("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
 
 		}else{ //img file
 
@@ -120,7 +120,7 @@ void ofxAnimationAssetManager::setup(const string & folder, float maxUsedVRAM, c
 				string ID = ofFilePath::getBaseName(filenameAndExt);
 				info[ID].type = STATIC_IMAGE;
 				info[ID].fullPath = dir.getPath(i);
-				ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+				ofLogVerbose("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
 			}
 		}
 	}
@@ -188,13 +188,13 @@ bool ofxAnimationAssetManager::addAsset(string ID, string& path) {
 			// Load a single image inside this folder
 			info[ID].type = STATIC_IMAGE;
 			info[ID].fullPath = dir.getPath(0);
-			ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+			ofLogVerbose("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
 			return true;
 		}
 		else {							// animation
 			info[ID].type = ANIMATION;
 			info[ID].fullPath = path;
-			ofLogNotice("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
+			ofLogVerbose("ofxAnimationAssetManager") << "found ANIMATION with ID \"" << ID << "\"";
 			return true;
 		}
 	}
@@ -203,7 +203,7 @@ bool ofxAnimationAssetManager::addAsset(string ID, string& path) {
 		if (ofToUpper(extension) == "PNG" || ofToUpper(extension) == "TGA") {
 			info[ID].type = STATIC_IMAGE;
 			info[ID].fullPath = path;
-			ofLogNotice("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
+			ofLogVerbose("ofxAnimationAssetManager") << "found STATIC_IMAGE with ID \"" << ID << "\"";
 			return true;
 		}
 		else {
@@ -297,7 +297,7 @@ void ofxAnimationAssetManager::setState(State s){
 					animations[it.first].setKeepTexturesInGpuMem(false); //default to no, will set to true later if requested (in preload stage)
 
 					info[it.first].estimatedSize = estimatedSizeBytes / float(1024 * 1024); //MB
-					ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << it.first << "\" estimated VRAM use to preload whole sequence: " << bytesToHumanReadable(estimatedSizeBytes, 1);
+					ofLogVerbose("ofxAnimationAssetManager") << "Animation \"" << it.first << "\" estimated VRAM use to preload whole sequence: " << bytesToHumanReadable(estimatedSizeBytes, 1);
 
 					//store in temoprary data structure
 					animInfos.push_back(AnimInfo{it.first, info[it.first].estimatedSize, animations[it.first].getNumFrames()});
@@ -323,7 +323,7 @@ void ofxAnimationAssetManager::setState(State s){
 				}
 			}
 
-			ofLogNotice("ofxAnimationAssetManager") << "Static Images will take " << memUsedByStaticImages << " Mb in VRAM.";
+			ofLogVerbose("ofxAnimationAssetManager") << "Static Images will take " << memUsedByStaticImages << " Mb in VRAM.";
 			float memUsedByAllAnimationsSingleFrame = 0;
 			for(auto & anim : animInfos){
 				float mb = anim.estimatedSizeFullSequence / anim.numFrames;
@@ -339,14 +339,14 @@ void ofxAnimationAssetManager::setState(State s){
 					if(availableMemForAnimationsPreload - anim.estimatedSizeFullSequence > 0){
 						availableMemForAnimationsPreload -= anim.estimatedSizeFullSequence;
 						pendingPreload.push_back(anim.ID);
-						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because there's enough VRAM to fit it. " << availableMemForAnimationsPreload << " Mb left to use.";
+						ofLogVerbose("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because there's enough VRAM to fit it. " << availableMemForAnimationsPreload << " Mb left to use.";
 					}
 				}else{
 					if(assetLoadOptions[anim.ID].shouldPreloadAsset == YES){
 						pendingPreload.push_back(anim.ID);
-						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because of user config requesting it.";
+						ofLogVerbose("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be preloaded because of user config requesting it.";
 					}else{
-						ofLogNotice("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be NOT BE preloaded because of user config requesting it.";
+						ofLogVerbose("ofxAnimationAssetManager") << "Animation \"" << anim.ID << "\" will be NOT BE preloaded because of user config requesting it.";
 					}
 				}
 			}
